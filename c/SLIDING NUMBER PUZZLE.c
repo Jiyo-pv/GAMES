@@ -1,3 +1,4 @@
+//this is compatible with TURBOC3 ONLY
 #include<stdio.h>
 #include<conio.h>
 #include<string.h>
