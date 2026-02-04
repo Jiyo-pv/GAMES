@@ -6,113 +6,114 @@
 <title>Sudoku CSP</title>
 
 <style>
-:root {
-  --bg: #020617;
-  --card: #0f172a;
-  --cell: #1e293b;
-  --accent: #38bdf8;
-  --fixed: #334155;
-  --text: #e5e7eb;
+:root{
+  --bg:#020617;
+  --card:#0f172a;
+  --cell:#1e293b;
+  --fixed:#334155;
+  --accent:#38bdf8;
+  --text:#e5e7eb;
+  --conflict:#7f1d1d;
 }
 
-* { box-sizing: border-box; font-family: system-ui, sans-serif; }
+*{box-sizing:border-box;font-family:system-ui,sans-serif;}
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background: linear-gradient(160deg, #020617, #000);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: var(--text);
+body{
+  margin:0;
+  min-height:100vh;
+  background:linear-gradient(160deg,#020617,#000);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  color:var(--text);
 }
 
-.container {
-  width: 100%;
-  max-width: 420px;
-  padding: 16px;
+.container{
+  width:100%;
+  max-width:420px;
+  padding:16px;
 }
 
-.card {
-  background: var(--card);
-  border-radius: 20px;
-  padding: 16px;
-  box-shadow: 0 20px 40px rgba(0,0,0,.7);
+.card{
+  background:var(--card);
+  padding:16px;
+  border-radius:18px;
+  box-shadow:0 20px 40px rgba(0,0,0,.7);
 }
 
-h1 {
-  text-align: center;
-  color: var(--accent);
-  margin: 0 0 8px;
+h1{
+  margin:0 0 8px;
+  text-align:center;
+  color:var(--accent);
 }
 
-.stats {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  margin-bottom: 12px;
-  opacity: .85;
+.stats{
+  display:flex;
+  justify-content:space-between;
+  font-size:13px;
+  margin-bottom:12px;
+  opacity:.85;
 }
 
-#board {
-  display: grid;
-  grid-template-columns: repeat(9, 1fr);
-  border: 3px solid var(--accent);
-  border-radius: 10px;
-  overflow: hidden;
+#board{
+  display:grid;
+  grid-template-columns:repeat(9,1fr);
+  border:3px solid var(--accent);
+  border-radius:10px;
+  overflow:hidden;
 }
 
-.cell {
-  aspect-ratio: 1;
-  background: var(--cell);
-  border: 1px solid #475569;
-  text-align: center;
-  font-size: clamp(18px, 5vw, 24px);
-  color: white;
+.cell{
+  aspect-ratio:1;
+  border:1px solid #475569;
+  background:var(--cell);
+  color:white;
+  text-align:center;
+  font-size:clamp(18px,5vw,24px);
 }
 
-/* 3x3 grid lines */
-.cell:nth-child(3n) { border-right: 3px solid var(--accent); }
-.cell:nth-child(9n) { border-right: 1px solid #475569; }
+.prefilled{
+  background:var(--fixed);
+  font-weight:bold;
+}
+
+.cell:focus{outline:2px solid var(--accent);}
+
+/* 3x3 borders */
+.cell:nth-child(3n){border-right:3px solid var(--accent);}
+.cell:nth-child(9n){border-right:1px solid #475569;}
 .cell:nth-child(n+19):nth-child(-n+27),
-.cell:nth-child(n+46):nth-child(-n+54) {
-  border-bottom: 3px solid var(--accent);
+.cell:nth-child(n+46):nth-child(-n+54){
+  border-bottom:3px solid var(--accent);
 }
 
-.prefilled {
-  background: var(--fixed);
-  font-weight: bold;
+/* Conflict highlight */
+.conflict{
+  background:var(--conflict)!important;
 }
 
-.cell:focus {
-  outline: 2px solid var(--accent);
+.actions{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  margin-top:14px;
 }
 
-.actions {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 14px;
+button{
+  padding:12px 0;
+  border:none;
+  border-radius:12px;
+  background:var(--accent);
+  font-weight:700;
+  cursor:pointer;
 }
 
-button {
-  padding: 12px 0;
-  border-radius: 12px;
-  border: none;
-  background: var(--accent);
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-}
+button:active{transform:scale(.97);}
 
-button:active {
-  transform: scale(0.97);
-}
-
-#message {
-  text-align: center;
-  margin-top: 10px;
-  font-weight: 600;
+#message{
+  text-align:center;
+  margin-top:10px;
+  font-weight:600;
 }
 </style>
 </head>
@@ -140,7 +141,7 @@ button:active {
 </div>
 
 <script>
-const puzzle = [
+const puzzle=[
  [5,3,0,0,7,0,0,0,0],
  [6,0,0,1,9,5,0,0,0],
  [0,9,8,0,0,0,0,6,0],
@@ -152,147 +153,174 @@ const puzzle = [
  [0,0,0,0,8,0,0,7,9]
 ];
 
-const board = document.getElementById("board");
-const message = document.getElementById("message");
+const board=document.getElementById("board");
+const message=document.getElementById("message");
 
-let time = 0;
-let timer = setInterval(updateTimer, 1000);
+let time=0;
+setInterval(()=>{document.getElementById("timer").innerText=`Time: ${++time}s`;},1000);
 
-function updateTimer() {
-  time++;
-  document.getElementById("timer").innerText = `Time: ${time}s`;
+function loadBest(){
+  const b=localStorage.getItem("bestTime");
+  if(b) document.getElementById("best").innerText=`Best: ${b}s`;
 }
 
-function loadBestTime() {
-  const best = localStorage.getItem("bestTime");
-  if (best) document.getElementById("best").innerText = `Best: ${best}s`;
-}
-
-function saveBestTime() {
-  const best = localStorage.getItem("bestTime");
-  if (!best || time < best) {
-    localStorage.setItem("bestTime", time);
-    loadBestTime();
+function saveBest(){
+  const b=localStorage.getItem("bestTime");
+  if(!b||time<b){
+    localStorage.setItem("bestTime",time);
+    loadBest();
   }
 }
 
-function createBoard() {
-  board.innerHTML = "";
-  puzzle.flat().forEach(num => {
-    const input = document.createElement("input");
-    input.className = "cell";
-    input.maxLength = 1;
+function clearConflicts(){
+  document.querySelectorAll(".cell")
+    .forEach(c=>c.classList.remove("conflict"));
+}
 
-    if (num !== 0) {
-      input.value = num;
-      input.disabled = true;
-      input.classList.add("prefilled");
-    } else {
-      input.addEventListener("input", () => {
-        input.value = input.value.replace(/[^1-9]/g, "");
+function createBoard(){
+  board.innerHTML="";
+  puzzle.flat().forEach(n=>{
+    const c=document.createElement("input");
+    c.className="cell";
+    c.maxLength=1;
+    if(n){
+      c.value=n;
+      c.disabled=true;
+      c.classList.add("prefilled");
+    }else{
+      c.addEventListener("input",()=>{
+        c.value=c.value.replace(/[^1-9]/g,"");
+        clearConflicts();
+        message.innerText="";
       });
     }
-    board.appendChild(input);
+    board.appendChild(c);
   });
 }
 
-function getGrid() {
-  let grid = [...Array(9)].map(() => Array(9).fill(0));
-  document.querySelectorAll(".cell").forEach((c, i) => {
-    grid[Math.floor(i / 9)][i % 9] = Number(c.value) || 0;
+function getGrid(){
+  let g=[...Array(9)].map(()=>Array(9).fill(0));
+  document.querySelectorAll(".cell").forEach((c,i)=>{
+    g[Math.floor(i/9)][i%9]=Number(c.value)||0;
   });
-  return grid;
+  return g;
 }
 
-function isValid(arr) {
-  const nums = arr.filter(n => n !== 0);
-  return nums.length === new Set(nums).size;
+function markConflict(indices){
+  indices.forEach(i=>{
+    document.querySelectorAll(".cell")[i].classList.add("conflict");
+  });
 }
 
-function checkSolution() {
-  const grid = getGrid();
+function checkSolution(){
+  clearConflicts();
+  const g=getGrid();
 
-  for (let i = 0; i < 9; i++) {
-    if (!isValid(grid[i]) || !isValid(grid.map(r => r[i]))) {
-      message.innerText = "❌ Constraint violation";
-      message.style.color = "red";
-      return;
+  // rows & columns
+  for(let i=0;i<9;i++){
+    let r={}, c={};
+    for(let j=0;j<9;j++){
+      let rv=g[i][j], cv=g[j][i];
+      if(rv){
+        if(r[rv]!=null){
+          markConflict([i*9+j, i*9+r[rv]]);
+          message.innerText="❌ Constraint violation";
+          message.style.color="red";
+          return;
+        }
+        r[rv]=j;
+      }
+      if(cv){
+        if(c[cv]!=null){
+          markConflict([j*9+i, c[cv]*9+i]);
+          message.innerText="❌ Constraint violation";
+          message.style.color="red";
+          return;
+        }
+        c[cv]=j;
+      }
     }
   }
 
-  for (let r = 0; r < 9; r += 3)
-    for (let c = 0; c < 9; c += 3) {
-      let box = [];
-      for (let i = 0; i < 3; i++)
-        for (let j = 0; j < 3; j++)
-          box.push(grid[r+i][c+j]);
-      if (!isValid(box)) {
-        message.innerText = "❌ Constraint violation";
-        message.style.color = "red";
-        return;
-      }
+  // 3x3 boxes
+  for(let br=0;br<9;br+=3)
+    for(let bc=0;bc<9;bc+=3){
+      let seen={};
+      for(let r=0;r<3;r++)
+        for(let c=0;c<3;c++){
+          let val=g[br+r][bc+c];
+          let idx=(br+r)*9+(bc+c);
+          if(val){
+            if(seen[val]!=null){
+              markConflict([idx,seen[val]]);
+              message.innerText="❌ Constraint violation";
+              message.style.color="red";
+              return;
+            }
+            seen[val]=idx;
+          }
+        }
     }
 
-  for (let r = 0; r < 9; r++)
-    for (let c = 0; c < 9; c++)
-      if (grid[r][c] === 0) {
-        message.innerText = "👍 You are on track!";
-        message.style.color = "#38bdf8";
+  // incomplete but valid
+  for(let r=0;r<9;r++)
+    for(let c=0;c<9;c++)
+      if(g[r][c]===0){
+        message.innerText="👍 You are on track!";
+        message.style.color="#38bdf8";
         return;
       }
 
-  message.innerText = "🎉 Solved!";
-  message.style.color = "#22c55e";
-  saveBestTime();
+  message.innerText="🎉 Sudoku Solved!";
+  message.style.color="#22c55e";
+  saveBest();
 }
 
-function solveSudoku() {
-  let grid = puzzle.map(r => r.slice());
-  solveCSP(grid);
-  document.querySelectorAll(".cell").forEach((c, i) => {
-    c.value = grid[Math.floor(i / 9)][i % 9];
-    c.disabled = true;
-  });
-  message.innerText = "Solved using CSP";
-  message.style.color = "#22c55e";
-}
-
-function isSafe(grid, r, c, n) {
-  for (let x = 0; x < 9; x++)
-    if (grid[r][x] === n || grid[x][c] === n) return false;
-
-  let sr = r - r % 3, sc = c - c % 3;
-  for (let i = 0; i < 3; i++)
-    for (let j = 0; j < 3; j++)
-      if (grid[sr+i][sc+j] === n) return false;
-
+function isSafe(g,r,c,n){
+  for(let i=0;i<9;i++)
+    if(g[r][i]===n||g[i][c]===n) return false;
+  let sr=r-r%3,sc=c-c%3;
+  for(let i=0;i<3;i++)
+    for(let j=0;j<3;j++)
+      if(g[sr+i][sc+j]===n) return false;
   return true;
 }
 
-function solveCSP(grid) {
-  for (let r = 0; r < 9; r++)
-    for (let c = 0; c < 9; c++)
-      if (grid[r][c] === 0) {
-        for (let n = 1; n <= 9; n++) {
-          if (isSafe(grid, r, c, n)) {
-            grid[r][c] = n;
-            if (solveCSP(grid)) return true;
-            grid[r][c] = 0;
+function solveCSP(g){
+  for(let r=0;r<9;r++)
+    for(let c=0;c<9;c++)
+      if(g[r][c]===0){
+        for(let n=1;n<=9;n++)
+          if(isSafe(g,r,c,n)){
+            g[r][c]=n;
+            if(solveCSP(g)) return true;
+            g[r][c]=0;
           }
-        }
         return false;
       }
   return true;
 }
 
-function newGame() {
-  time = 0;
-  message.innerText = "";
+function solveSudoku(){
+  clearConflicts();
+  let g=puzzle.map(r=>r.slice());
+  solveCSP(g);
+  document.querySelectorAll(".cell").forEach((c,i)=>{
+    c.value=g[Math.floor(i/9)][i%9];
+    c.disabled=true;
+  });
+  message.innerText="Solved using CSP Backtracking";
+  message.style.color="#22c55e";
+}
+
+function newGame(){
+  time=0;
+  message.innerText="";
   createBoard();
 }
 
 createBoard();
-loadBestTime();
+loadBest();
 </script>
 </body>
 </html>
