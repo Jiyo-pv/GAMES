@@ -221,13 +221,13 @@ function isValid(arr) {
   const nums = arr.filter(v => v !== 0);
   return nums.length === new Set(nums).size;
 }
-
 function checkSolution() {
   let grid = getGrid();
 
+  // 1️⃣ Check constraint violations first
   for (let i = 0; i < 9; i++) {
     if (!isValid(grid[i]) || !isValid(grid.map(r => r[i]))) {
-      message.innerText = "❌ Constraint violation";
+      message.innerText = "❌ Constraint violation detected";
       message.style.color = "red";
       return;
     }
@@ -240,14 +240,26 @@ function checkSolution() {
         for (let j = 0; j < 3; j++)
           box.push(grid[r+i][c+j]);
       if (!isValid(box)) {
-        message.innerText = "❌ Constraint violation";
+        message.innerText = "❌ Constraint violation detected";
         message.style.color = "red";
         return;
       }
     }
   }
 
-  message.innerText = "🎉 Correct Solution!";
+  // 2️⃣ Check if incomplete
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (grid[r][c] === 0) {
+        message.innerText = "👍 You are on track!";
+        message.style.color = "#38bdf8";
+        return;
+      }
+    }
+  }
+
+  // 3️⃣ Complete + valid
+  message.innerText = "🎉 Sudoku solved correctly!";
   message.style.color = "#22c55e";
 }
 
