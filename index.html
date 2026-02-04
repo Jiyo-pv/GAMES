@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sudoku CSP</title>
+<title>Sudoku – CSP</title>
 
 <style>
 :root{
@@ -13,13 +13,10 @@
   --fixed:#334155;
   --accent:#38bdf8;
   --text:#e5e7eb;
-  --conflict:#7f1d1d;
+  --wrong:#7f1d1d;
 }
 
-*{
-  box-sizing:border-box;
-  font-family:system-ui, sans-serif;
-}
+*{box-sizing:border-box;font-family:system-ui,sans-serif;}
 
 body{
   margin:0;
@@ -31,12 +28,7 @@ body{
   color:var(--text);
 }
 
-.container{
-  width:100%;
-  max-width:420px;
-  padding:16px;
-}
-
+.container{max-width:420px;width:100%;padding:16px;}
 .card{
   background:var(--card);
   padding:16px;
@@ -44,73 +36,43 @@ body{
   box-shadow:0 20px 40px rgba(0,0,0,.7);
 }
 
-h1{
-  text-align:center;
-  color:var(--accent);
-  margin:0 0 8px;
-}
+h1{text-align:center;color:var(--accent);margin:0 0 8px;}
 
 .stats{
   display:flex;
   justify-content:space-between;
   font-size:13px;
   margin-bottom:12px;
-  opacity:.85;
 }
 
 #board{
   display:grid;
-  grid-template-columns:repeat(9, 1fr);
-  width:100%;
+  grid-template-columns:repeat(9,1fr);
   border:3px solid var(--accent);
   border-radius:10px;
   overflow:hidden;
 }
 
-/* 🔑 CRITICAL FIX HERE */
 .cell{
+  aspect-ratio:1;
   width:100%;
-  height:100%;
-  aspect-ratio:1 / 1;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-
   border:1px solid #475569;
   background:var(--cell);
   color:white;
   text-align:center;
-  font-size:clamp(18px, 5vw, 24px);
-
-  appearance:none;
-  -webkit-appearance:none;
-  outline:none;
+  font-size:clamp(18px,5vw,24px);
 }
 
-.prefilled{
-  background:var(--fixed);
-  font-weight:bold;
-}
+.prefilled{background:var(--fixed);font-weight:bold;}
+.wrong{background:var(--wrong)!important;}
 
-.cell:focus{
-  outline:2px solid var(--accent);
-}
+.cell:focus{outline:2px solid var(--accent);}
 
-/* 3×3 grid borders */
-.cell:nth-child(3n){
-  border-right:3px solid var(--accent);
-}
-.cell:nth-child(9n){
-  border-right:1px solid #475569;
-}
+.cell:nth-child(3n){border-right:3px solid var(--accent);}
+.cell:nth-child(9n){border-right:1px solid #475569;}
 .cell:nth-child(n+19):nth-child(-n+27),
 .cell:nth-child(n+46):nth-child(-n+54){
   border-bottom:3px solid var(--accent);
-}
-
-/* Conflict highlight */
-.conflict{
-  background:var(--conflict)!important;
 }
 
 .actions{
@@ -121,7 +83,7 @@ h1{
 }
 
 button{
-  padding:12px 0;
+  padding:12px;
   border:none;
   border-radius:12px;
   background:var(--accent);
@@ -129,38 +91,30 @@ button{
   cursor:pointer;
 }
 
-button:active{
-  transform:scale(.97);
-}
-
-#message{
-  text-align:center;
-  margin-top:10px;
-  font-weight:600;
-}
+#message{text-align:center;margin-top:10px;font-weight:600;}
 </style>
 </head>
 
 <body>
 <div class="container">
-  <div class="card">
-    <h1>Sudoku</h1>
+<div class="card">
+<h1>Sudoku</h1>
 
-    <div class="stats">
-      <span id="timer">Time: 0s</span>
-      <span id="best">Best: --</span>
-    </div>
+<div class="stats">
+  <span id="timer">Time: 0s</span>
+  <span id="best">Best: --</span>
+</div>
 
-    <div id="board"></div>
+<div id="board"></div>
 
-    <div class="actions">
-      <button onclick="checkSolution()">Check</button>
-      <button onclick="solveSudoku()">Solve</button>
-      <button onclick="newGame()">New</button>
-    </div>
+<div class="actions">
+  <button onclick="check()">Check</button>
+  <button onclick="solve()">Solve</button>
+  <button onclick="resetGame()">New</button>
+</div>
 
-    <div id="message"></div>
-  </div>
+<div id="message"></div>
+</div>
 </div>
 
 <script>
@@ -176,122 +130,24 @@ const puzzle=[
  [0,0,0,0,8,0,0,7,9]
 ];
 
-const board=document.getElementById("board");
-const message=document.getElementById("message");
-
+let solution;
 let time=0;
-setInterval(()=>{
-  document.getElementById("timer").innerText=`Time: ${++time}s`;
-},1000);
+setInterval(()=>document.getElementById("timer").innerText=`Time: ${++time}s`,1000);
 
-function createBoard(){
-  board.innerHTML="";
-  puzzle.flat().forEach(n=>{
-    const c=document.createElement("input");
-    c.className="cell";
-    c.maxLength=1;
-
-    if(n){
-      c.value=n;
-      c.disabled=true;
-      c.classList.add("prefilled");
-    }else{
-      c.addEventListener("input",()=>{
-        c.value=c.value.replace(/[^1-9]/g,"");
-        clearConflicts();
-      });
-    }
-    board.appendChild(c);
-  });
-}
-
-function clearConflicts(){
-  document.querySelectorAll(".cell")
-    .forEach(c=>c.classList.remove("conflict"));
-}
-
-function getGrid(){
-  let g=[...Array(9)].map(()=>Array(9).fill(0));
-  document.querySelectorAll(".cell").forEach((c,i)=>{
-    g[Math.floor(i/9)][i%9]=Number(c.value)||0;
-  });
-  return g;
-}
-
-function checkSolution(){
-  clearConflicts();
-  const g=getGrid();
-
-  for(let i=0;i<9;i++){
-    let r={}, c={};
-    for(let j=0;j<9;j++){
-      let rv=g[i][j], cv=g[j][i];
-      if(rv){
-        if(r[rv]!=null){
-          mark([i*9+j, i*9+r[rv]]);
-          return fail();
-        }
-        r[rv]=j;
-      }
-      if(cv){
-        if(c[cv]!=null){
-          mark([j*9+i, c[cv]*9+i]);
-          return fail();
-        }
-        c[cv]=j;
-      }
-    }
-  }
-
-  for(let br=0;br<9;br+=3)
-    for(let bc=0;bc<9;bc+=3){
-      let seen={};
-      for(let r=0;r<3;r++)
-        for(let c=0;c<3;c++){
-          let v=g[br+r][bc+c];
-          let idx=(br+r)*9+(bc+c);
-          if(v){
-            if(seen[v]!=null){
-              mark([idx, seen[v]]);
-              return fail();
-            }
-            seen[v]=idx;
-          }
-        }
-    }
-
+function solveCSP(g){
   for(let r=0;r<9;r++)
     for(let c=0;c<9;c++)
       if(g[r][c]===0){
-        message.innerText="👍 You are on track!";
-        message.style.color="#38bdf8";
-        return;
+        for(let n=1;n<=9;n++){
+          if(isSafe(g,r,c,n)){
+            g[r][c]=n;
+            if(solveCSP(g)) return true;
+            g[r][c]=0;
+          }
+        }
+        return false;
       }
-
-  message.innerText="🎉 Sudoku Solved!";
-  message.style.color="#22c55e";
-}
-
-function mark(arr){
-  arr.forEach(i=>{
-    document.querySelectorAll(".cell")[i].classList.add("conflict");
-  });
-}
-
-function fail(){
-  message.innerText="❌ Constraint violation";
-  message.style.color="red";
-}
-
-function solveSudoku(){
-  let g=puzzle.map(r=>r.slice());
-  solveCSP(g);
-  document.querySelectorAll(".cell").forEach((c,i)=>{
-    c.value=g[Math.floor(i/9)][i%9];
-    c.disabled=true;
-  });
-  message.innerText="Solved using CSP Backtracking";
-  message.style.color="#22c55e";
+  return true;
 }
 
 function isSafe(g,r,c,n){
@@ -304,28 +160,109 @@ function isSafe(g,r,c,n){
   return true;
 }
 
-function solveCSP(g){
+function buildBoard(){
+  const b=document.getElementById("board");
+  b.innerHTML="";
+  puzzle.flat().forEach(n=>{
+    const c=document.createElement("input");
+    c.className="cell";
+    c.maxLength=1;
+    if(n){
+      c.value=n;
+      c.disabled=true;
+      c.classList.add("prefilled");
+    }else{
+      c.oninput=()=>c.value=c.value.replace(/[^1-9]/g,"");
+    }
+    b.appendChild(c);
+  });
+}
+
+function getGrid(){
+  let g=[...Array(9)].map(()=>Array(9).fill(0));
+  document.querySelectorAll(".cell").forEach((c,i)=>{
+    g[Math.floor(i/9)][i%9]=Number(c.value)||0;
+  });
+  return g;
+}
+
+function clearMarks(){
+  document.querySelectorAll(".cell").forEach(c=>c.classList.remove("wrong"));
+}
+
+function check(){
+  clearMarks();
+  const user=getGrid();
+  let filled=true, wrong=false;
+
+  document.querySelectorAll(".cell").forEach((c,i)=>{
+    let r=Math.floor(i/9),col=i%9;
+    if(user[r][col]!==0){
+      if(user[r][col]!==solution[r][col]){
+        c.classList.add("wrong");
+        wrong=true;
+      }
+    }else filled=false;
+  });
+
+  if(wrong){
+    msg("❌ Wrong placement","red");
+  }else if(!filled){
+    msg("👍 You are on track!","#38bdf8");
+  }else{
+    msg("🎉 Solved!","#22c55e");
+    saveBest();
+  }
+}
+
+function solve(){
+  clearMarks();
+  const user=getGrid();
   for(let r=0;r<9;r++)
     for(let c=0;c<9;c++)
-      if(g[r][c]===0){
-        for(let n=1;n<=9;n++)
-          if(isSafe(g,r,c,n)){
-            g[r][c]=n;
-            if(solveCSP(g)) return true;
-            g[r][c]=0;
-          }
-        return false;
+      if(user[r][c]!==0 && user[r][c]!==solution[r][c]){
+        msg("❌ Fix wrong entries first","red");
+        return;
       }
-  return true;
+
+  document.querySelectorAll(".cell").forEach((c,i)=>{
+    if(!c.value){
+      c.value=solution[Math.floor(i/9)][i%9];
+      c.disabled=true;
+    }
+  });
+  msg("Solved using CSP","#22c55e");
 }
 
-function newGame(){
+function saveBest(){
+  const b=localStorage.getItem("bestTime");
+  if(!b||time<Number(b)){
+    localStorage.setItem("bestTime",time);
+  }
+  loadBest();
+}
+
+function loadBest(){
+  const b=localStorage.getItem("bestTime");
+  document.getElementById("best").innerText=b?`Best: ${b}s`:"Best: --";
+}
+
+function msg(t,c){
+  const m=document.getElementById("message");
+  m.innerText=t;
+  m.style.color=c;
+}
+
+function resetGame(){
   time=0;
-  message.innerText="";
-  createBoard();
+  msg("","");
+  buildBoard();
 }
 
-createBoard();
+solution=puzzle.map(r=>r.slice());
+solveCSP(solution);
+buildBoard();
+loadBest();
 </script>
 </body>
 </html>
