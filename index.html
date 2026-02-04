@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sudoku CSP Solver</title>
+
+<style>
+:root {
+  --bg: #020617;
+  --card: #0f172a;
+  --cell: #1e293b;
+  --accent: #38bdf8;
+  --fixed: #334155;
+  --text: #e5e7eb;
+}
+
+* { box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #020617, #000);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text);
+}
+
+.container {
+  background: var(--card);
+  padding: 20px;
+  border-radius: 18px;
+  width: 95%;
+  max-width: 420px;
+  box-shadow: 0 25px 50px rgba(0,0,0,.7);
+}
+
+h1 {
+  text-align: center;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+#timer {
+  text-align: center;
+  font-size: 14px;
+  opacity: .8;
+  margin-bottom: 15px;
+}
+
+#board {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 4px;
+  margin-bottom: 15px;
+}
+
+.cell {
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--cell);
+  border: none;
+  border-radius: 6px;
+  text-align: center;
+  font-size: clamp(18px, 4vw, 22px);
+  color: white;
+}
+
+.cell:focus { outline: 2px solid var(--accent); }
+
+.prefilled {
+  background: var(--fixed);
+  font-weight: bold;
+}
+
+.buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover { opacity: .9; }
+
+#message {
+  margin-top: 10px;
+  text-align: center;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>Sudoku (CSP)</h1>
+  <div id="timer">Time: 0s</div>
+
+  <div id="board"></div>
+
+  <div class="buttons">
+    <button onclick="checkSolution()">Check</button>
+    <button onclick="solveSudoku()">Solve</button>
+    <button onclick="newGame()">New Game</button>
+  </div>
+
+  <div id="message"></div>
+</div>
+
+<script>
+const puzzle = [
+ [5,3,0,0,7,0,0,0,0],
+ [6,0,0,1,9,5,0,0,0],
+ [0,9,8,0,0,0,0,6,0],
+ [8,0,0,0,6,0,0,0,3],
+ [4,0,0,8,0,3,0,0,1],
+ [7,0,0,0,2,0,0,0,6],
+ [0,6,0,0,0,0,2,8,0],
+ [0,0,0,4,1,9,0,0,5],
+ [0,0,0,0,8,0,0,7,9]
+];
+
+const board = document.getElementById("board");
+const message = document.getElementById("message");
+
+let time = 0;
+setInterval(() => {
+  document.getElementById("timer").innerText = "Time: " + time++ + "s";
+}, 1000);
+
+function createBoard() {
+  board.innerHTML = "";
+  puzzle.flat().forEach(num => {
+    const input = document.createElement("input");
+    input.className = "cell";
+    input.maxLength = 1;
+
+    if (num !== 0) {
+      input.value = num;
+      input.disabled = true;
+      input.classList.add("prefilled");
+    } else {
+      input.addEventListener("input", () => {
+        input.value = input.value.replace(/[^1-9]/g, "");
+      });
+    }
+    board.appendChild(input);
+  });
+}
+
+function getGrid() {
+  const cells = document.querySelectorAll(".cell");
+  let grid = [...Array(9)].map(() => Array(9).fill(0));
+  cells.forEach((cell, i) => {
+    grid[Math.floor(i / 9)][i % 9] = Number(cell.value) || 0;
+  });
+  return grid;
+}
+
+function setGrid(grid) {
+  document.querySelectorAll(".cell").forEach((cell, i) => {
+    cell.value = grid[Math.floor(i / 9)][i % 9] || "";
+  });
+}
+
+function isSafe(grid, row, col, num) {
+  for (let x = 0; x < 9; x++)
+    if (grid[row][x] === num || grid[x][col] === num)
+      return false;
+
+  let startRow = row - row % 3;
+  let startCol = col - col % 3;
+
+  for (let i = 0; i < 3; i++)
+    for (let j = 0; j < 3; j++)
+      if (grid[startRow + i][startCol + j] === num)
+        return false;
+
+  return true;
+}
+
+function solveCSP(grid) {
+  for (let row = 0; row < 9; row++) {
+    for (let col = 0; col < 9; col++) {
+      if (grid[row][col] === 0) {
+        for (let num = 1; num <= 9; num++) {
+          if (isSafe(grid, row, col, num)) {
+            grid[row][col] = num;
+            if (solveCSP(grid)) return true;
+            grid[row][col] = 0;
+          }
+        }
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function solveSudoku() {
+  let grid = getGrid();
+  if (solveCSP(grid)) {
+    setGrid(grid);
+    message.innerText = "✅ Solved using CSP Backtracking";
+    message.style.color = "#22c55e";
+  } else {
+    message.innerText = "❌ No solution exists";
+    message.style.color = "red";
+  }
+}
+
+function isValid(arr) {
+  const nums = arr.filter(v => v !== 0);
+  return nums.length === new Set(nums).size;
+}
+
+function checkSolution() {
+  let grid = getGrid();
+
+  for (let i = 0; i < 9; i++) {
+    if (!isValid(grid[i]) || !isValid(grid.map(r => r[i]))) {
+      message.innerText = "❌ Constraint violation";
+      message.style.color = "red";
+      return;
+    }
+  }
+
+  for (let r = 0; r < 9; r += 3) {
+    for (let c = 0; c < 9; c += 3) {
+      let box = [];
+      for (let i = 0; i < 3; i++)
+        for (let j = 0; j < 3; j++)
+          box.push(grid[r+i][c+j]);
+      if (!isValid(box)) {
+        message.innerText = "❌ Constraint violation";
+        message.style.color = "red";
+        return;
+      }
+    }
+  }
+
+  message.innerText = "🎉 Correct Solution!";
+  message.style.color = "#22c55e";
+}
+
+function newGame() {
+  time = 0;
+  message.innerText = "";
+  createBoard();
+}
+
+createBoard();
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sudoku CSP Solver</title>
+
+<style>
+:root {
+  --bg: #020617;
+  --card: #0f172a;
+  --cell: #1e293b;
+  --accent: #38bdf8;
+  --fixed: #334155;
+  --text: #e5e7eb;
+}
+
+* { box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #020617, #000);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text);
+}
+
+.container {
+  background: var(--card);
+  padding: 20px;
+  border-radius: 18px;
+  width: 95%;
+  max-width: 420px;
+  box-shadow: 0 25px 50px rgba(0,0,0,.7);
+}
+
+h1 {
+  text-align: center;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+#timer {
+  text-align: center;
+  font-size: 14px;
+  opacity: .8;
+  margin-bottom: 15px;
+}
+
+#board {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 4px;
+  margin-bottom: 15px;
+}
+
+.cell {
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--cell);
+  border: none;
+  border-radius: 6px;
+  text-align: center;
+  font-size: clamp(18px, 4vw, 22px);
+  color: white;
+}
+
+.cell:focus { outline: 2px solid var(--accent); }
+
+.prefilled {
+  background: var(--fixed);
+  font-weight: bold;
+}
+
+.buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover { opacity: .9; }
+
+#message {
+  margin-top: 10px;
+  text-align: center;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>Sudoku (CSP)</h1>
+  <div id="timer">Time: 0s</div>
+
+  <div id="board"></div>
+
+  <div class="buttons">
+    <button onclick="checkSolution()">Check</button>
+    <button onclick="solveSudoku()">Solve</button>
+    <button onclick="newGame()">New Game</button>
+  </div>
+
+  <div id="message"></div>
+</div>
+
+<script>
+const puzzle = [
+ [5,3,0,0,7,0,0,0,0],
+ [6,0,0,1,9,5,0,0,0],
+ [0,9,8,0,0,0,0,6,0],
+ [8,0,0,0,6,0,0,0,3],
+ [4,0,0,8,0,3,0,0,1],
+ [7,0,0,0,2,0,0,0,6],
+ [0,6,0,0,0,0,2,8,0],
+ [0,0,0,4,1,9,0,0,5],
+ [0,0,0,0,8,0,0,7,9]
+];
+
+const board = document.getElementById("board");
+const message = document.getElementById("message");
+
+let time = 0;
+setInterval(() => {
+  document.getElementById("timer").innerText = "Time: " + time++ + "s";
+}, 1000);
+
+function createBoard() {
+  board.innerHTML = "";
+  puzzle.flat().forEach(num => {
+    const input = document.createElement("input");
+    input.className = "cell";
+    input.maxLength = 1;
+
+    if (num !== 0) {
+      input.value = num;
+      input.disabled = true;
+      input.classList.add("prefilled");
+    } else {
+      input.addEventListener("input", () => {
+        input.value = input.value.replace(/[^1-9]/g, "");
+      });
+    }
+    board.appendChild(input);
+  });
+}
+
+function getGrid() {
+  const cells = document.querySelectorAll(".cell");
+  let grid = [...Array(9)].map(() => Array(9).fill(0));
+  cells.forEach((cell, i) => {
+    grid[Math.floor(i / 9)][i % 9] = Number(cell.value) || 0;
+  });
+  return grid;
+}
+
+function setGrid(grid) {
+  document.querySelectorAll(".cell").forEach((cell, i) => {
+    cell.value = grid[Math.floor(i / 9)][i % 9] || "";
+  });
+}
+
+function isSafe(grid, row, col, num) {
+  for (let x = 0; x < 9; x++)
+    if (grid[row][x] === num || grid[x][col] === num)
+      return false;
+
+  let startRow = row - row % 3;
+  let startCol = col - col % 3;
+
+  for (let i = 0; i < 3; i++)
+    for (let j = 0; j < 3; j++)
+      if (grid[startRow + i][startCol + j] === num)
+        return false;
+
+  return true;
+}
+
+function solveCSP(grid) {
+  for (let row = 0; row < 9; row++) {
+    for (let col = 0; col < 9; col++) {
+      if (grid[row][col] === 0) {
+        for (let num = 1; num <= 9; num++) {
+          if (isSafe(grid, row, col, num)) {
+            grid[row][col] = num;
+            if (solveCSP(grid)) return true;
+            grid[row][col] = 0;
+          }
+        }
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function solveSudoku() {
+  let grid = getGrid();
+  if (solveCSP(grid)) {
+    setGrid(grid);
+    message.innerText = "✅ Solved using CSP Backtracking";
+    message.style.color = "#22c55e";
+  } else {
+    message.innerText = "❌ No solution exists";
+    message.style.color = "red";
+  }
+}
+
+function isValid(arr) {
+  const nums = arr.filter(v => v !== 0);
+  return nums.length === new Set(nums).size;
+}
+
+function checkSolution() {
+  let grid = getGrid();
+
+  for (let i = 0; i < 9; i++) {
+    if (!isValid(grid[i]) || !isValid(grid.map(r => r[i]))) {
+      message.innerText = "❌ Constraint violation";
+      message.style.color = "red";
+      return;
+    }
+  }
+
+  for (let r = 0; r < 9; r += 3) {
+    for (let c = 0; c < 9; c += 3) {
+      let box = [];
+      for (let i = 0; i < 3; i++)
+        for (let j = 0; j < 3; j++)
+          box.push(grid[r+i][c+j]);
+      if (!isValid(box)) {
+        message.innerText = "❌ Constraint violation";
+        message.style.color = "red";
+        return;
+      }
+    }
+  }
+
+  message.innerText = "🎉 Correct Solution!";
+  message.style.color = "#22c55e";
+}
+
+function newGame() {
+  time = 0;
+  message.innerText = "";
+  createBoard();
+}
+
+createBoard();
+</script>
+</body>
+</html>
